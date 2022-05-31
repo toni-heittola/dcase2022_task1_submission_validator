@@ -5,7 +5,7 @@ Author:
 
 **Toni Heittola**, *Tampere University* 
 [Email](mailto:toni.heittola@tuni.fi), 
-[Homepage](http://www.cs.tut.fi/~heittolt/), 
+[Homepage](https://homepages.tuni.fi/toni.heittola), 
 [GitHub](https://github.com/toni-heittola)
 
 This is an automatic validation tool for [DCASE2022 Challenge task1](http://dcase.community/challenge2022/task-acoustic-scene-classification) submission. 
