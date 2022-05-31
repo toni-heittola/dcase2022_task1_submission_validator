@@ -46,10 +46,10 @@ def main(argv):
             'system': {
                 'required_fields': ['description', 'complexity', 'external_datasets', 'source_code'],
                 'description': {
-                    'required_fields': ['input_sampling_rate', 'acoustic_features', 'embeddings', 'data_augmentation', 'machine_learning_method', 'ensemble_method_subsystem_count', 'decision_making', 'external_data_usage'],
+                    'required_fields': ['input_sampling_rate', 'acoustic_features', 'embeddings', 'data_augmentation', 'machine_learning_method', 'ensemble_method_subsystem_count', 'decision_making', 'external_data_usage', 'complexity_management', 'pipeline', 'framework'],
                 },
                 'complexity': {
-                    'required_fields': ['total_parameters']
+                    'required_fields': ['total_parameters', 'total_parameters_non_zero', 'memory_use', 'macs']
                 },
                 'external_datasets': {
                     'required_fields': ['name', 'url', 'total_audio_length']
@@ -77,8 +77,7 @@ def main(argv):
         }
     }
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', '--package', help='Submission package', type=str)
-    parser.add_argument('-t', '--task', help='Task selector: A or B', type=str)
+    parser.add_argument('-p', '--package', help='Submission package', type=str)    
     parser.add_argument('-o', '--output', help='System output file in CSV format', type=str)
     parser.add_argument('-m', '--meta', help='System meta information file in YAML format', type=str)
     args = parser.parse_args()
@@ -107,15 +106,16 @@ def main(argv):
                 file_info = z.getinfo(name)
                 if not file_info.is_dir() and 'task1' in name and '.pdf' not in name:
                     path_parts = os.path.split(name)[0].split('/')
-                    subtask = path_parts[2].split('_')[2]
+
+                    subtask = path_parts[0]
 
                     if subtask not in task_files:
-                        if subtask not in ['task1a', 'task1b']:
+                        if subtask not in ['task1']:
                             print_error('ZIP', 'Unknown task indicator [{tag:}] in [{name:}]'.format(tag=subtask, name=name))
                         else:
                             task_files[subtask] = {}
 
-                    submission_label = path_parts[2]
+                    submission_label = path_parts[-1]
                     if submission_label not in task_files[subtask]:
                         task_files[subtask][submission_label] = {}
 
@@ -127,12 +127,6 @@ def main(argv):
                         print_error('ZIP', 'Possibly wrongly formatted filename [{filename:s}]'.format(filename=name))
 
             for subtask in task_files:
-                if 'task1a' in subtask.lower():
-                    subtask_index = 'A'
-
-                elif 'task1b' in subtask.lower():
-                    subtask_index = 'B'
-
                 for submission_label in task_files[subtask]:
                     print('Validate [{subtask:} -> {submission_label:}]'.format(subtask=subtask, submission_label=submission_label))
                     print('------------------------------------------------------')
@@ -146,7 +140,7 @@ def main(argv):
                         output = file.read()
 
                     # Check data
-                    error_count += validate_output(data=output.decode("utf-8"), param=param[subtask_index]['output'])
+                    error_count += validate_output(data=output.decode("utf-8"), param=param['output'])
 
                     print('')
 
@@ -174,7 +168,7 @@ def main(argv):
                             raise IOError("Something went wrong while parsing yaml file [{file}]".format(file=meta_filename))
 
                     # Check data
-                    error_count += validate_meta_data(meta, subtask, param[subtask_index]['meta'])
+                    error_count += validate_meta_data(meta, subtask, param['meta'])
                     error_count += validate_submission_label(output_filename, meta_filename, meta['submission']['label'])
 
                     if submission_label != meta['submission']['label']:
@@ -186,9 +180,6 @@ def main(argv):
 
     else:
         # Check arguments
-        if args.task.lower() not in ['a', 'b']:
-            raise ValueError('Illegal task selector {selector:}'.format(args.task))
-
         if args.output is None:
             raise ValueError('Please give system output file')
 
@@ -201,14 +192,7 @@ def main(argv):
         if not os.path.exists(args.meta):
             raise IOError('System meta information file not found [{filename:}]'.format(filename=args.meta))
 
-        # Get subtask label and index
-        if args.task.lower() == 'a':
-            subtask_index = 'A'
-            subtask_label = 'task1a'
-
-        elif args.task.lower() == 'b':
-            subtask_index = 'B'
-            subtask_label = 'task1b'
+        task_label = 'task1'
 
         # Check file naming
         output_filename = os.path.split(args.output)[-1]
@@ -223,10 +207,10 @@ def main(argv):
             ])
             error_count += 1
 
-        if output_submission_label[2] != subtask_label:
+        if output_submission_label[2] != task_label:
             print_error('label', [
                 'Submission label in system OUTPUT filename is wrong [{filename:}]'.format(filename=output_filename),
-                'Correct format is [AUTHORLASTNAME]_[INSTITUTE]_[{subtask:}]_[1-4]'.format(subtask=subtask_label)
+                'Correct format is [AUTHORLASTNAME]_[INSTITUTE]_[{subtask:}]_[1-4]'.format(subtask=task_label)
             ])
             error_count += 1
         else:
@@ -249,10 +233,10 @@ def main(argv):
             ])
             error_count += 1
 
-        if meta_submission_label[2] != subtask_label:
+        if meta_submission_label[2] != task_label:
             print_error('label', [
                 'Submission label in system META information filename is wrong [{filename:}]'.format(filename=meta_filename),
-                'Correct format is [AUTHORLASTNAME]_[INSTITUTE]_[{subtask:}]_[1-4]'.format(subtask=subtask_label)
+                'Correct format is [AUTHORLASTNAME]_[INSTITUTE]_[{subtask:}]_[1-4]'.format(subtask=task_label)
             ])
             error_count += 1
 
@@ -270,7 +254,7 @@ def main(argv):
             output = file.read()
 
         # Check data
-        error_count += validate_output(data=output, param=param[subtask_index]['output'])
+        error_count += validate_output(data=output, param=param['output'])
 
         print('')
 
@@ -300,13 +284,13 @@ def main(argv):
                 raise IOError("Something went wrong while parsing yaml file [{file}]".format(file=meta_filename))
 
         # Check data
-        error_count += validate_meta_data(meta, subtask_label, param[subtask_index]['meta'])
+        error_count += validate_meta_data(meta, task_label, param['meta'])
         error_count += validate_submission_label(output_filename, meta_filename, meta['submission']['label'])
 
     if error_count == 0:
         print('------------------------------------------------------')
         print('No errors found!')
-        print('Files are ready for submission to DCASE2021 Challenge.')
+        print('Files are ready for submission to DCASE2022 Challenge.')
 
     else:
         print('------------------------------------------------------')
